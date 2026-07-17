@@ -35,6 +35,14 @@
   .hspacer{flex:1}
   .hmeta{text-align:right;font-size:12px;color:#f0cfcf}
   .hmeta b{display:block;color:#fff;font-size:14px;font-weight:700}
+  .hmeta .hver{display:block;font-size:11px;color:#e6bcbc;font-weight:600;margin-top:6px;letter-spacing:.02em}
+
+  .chart-tip{position:fixed;pointer-events:none;z-index:100;background:#141414;color:#fff;border-radius:6px;
+    padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:0 8px 22px rgba(0,0,0,.32);opacity:0;transition:opacity .1s;max-width:220px}
+  .chart-tip.on{opacity:1}
+  .chart-tip b{display:block;font-size:12.5px;margin-bottom:3px}
+  .chart-tip span{display:block}
+  .chart-tip .mut{color:#b8b8b8;font-size:11px}
 
   .tabbar{background:var(--white);border-bottom:1px solid var(--grey-light);position:sticky;top:0;z-index:20;
     box-shadow:0 1px 6px rgba(31,41,55,.05)}
@@ -113,6 +121,17 @@
   .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.03em;
     text-transform:uppercase;padding:3px 9px;border-radius:20px;background:#e8eaed;color:var(--black)}
 
+  /* right column: Fastest Shift (auto) + Turnout Time Trend (fills) */
+  .rcol{display:flex;flex-direction:column;gap:16px}
+  .trend-card{flex:1}
+  .trend-card .ctop{align-items:center}
+  .trend-wrap{flex:1;display:flex;align-items:center;margin-top:8px}
+  svg.trend{width:100%;height:auto;display:block}
+  .trend-badge{font-size:12px;font-weight:700;padding:4px 11px;border-radius:20px;white-space:nowrap;flex:0 0 auto}
+  .trend-badge.good{background:#e7f2ee;color:var(--pump-green)}
+  .trend-badge.bad{background:#f7e5e3;color:var(--alert)}
+  .trend-badge.flat{background:#eceff2;color:var(--grey-mid)}
+
   /* section head (hose/ladder/uc) */
   .section-head{margin:22px 0 4px}
   .section-head .ey{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--meta);font-weight:700}
@@ -177,7 +196,7 @@
       <h1>Performance Metrics</h1>
     </div>
     <div class="hspacer"></div>
-    <div class="hmeta">Reporting period<b>through July 16, 2026</b></div>
+    <div class="hmeta">Reporting period<b id="hThrough">through July 16, 2026</b><span class="hver" id="hVer">Board v2.0</span></div>
   </div>
 </header>
 
@@ -216,10 +235,15 @@
         </div>
         <div class="chartbox"><div id="turnChart" style="width:100%"></div></div>
       </div>
-      <div class="card">
-        <div class="ctop"><div><h3>Shift Comparison</h3><div class="csub">Department average turnout</div></div></div>
-        <div class="shiftrow" id="turnShiftRow"></div>
-        <div class="callout" id="turnCallout"></div>
+      <div class="rcol">
+        <div class="card">
+          <div class="ctop"><div><h3>Fastest Shift</h3><div class="csub">Department average turnout by shift</div></div></div>
+          <div class="shiftrow" id="turnShiftRow"></div>
+        </div>
+        <div class="card trend-card">
+          <div class="ctop"><div><h3>Turnout Time Trend</h3><div class="csub" id="trendSub"></div></div><span class="trend-badge" id="trendBadge"></span></div>
+          <div class="trend-wrap"><div id="trendChart" style="width:100%"></div></div>
+        </div>
       </div>
     </div>
   </section>
@@ -309,10 +333,27 @@
 
   <footer>Cedar Hill Fire Department &middot; Performance Metrics &middot; turnout &amp; training reflect real department data through Jul 16, 2026</footer>
 </div>
+<div class="chart-tip" id="chartTip"></div>
 
 <script>
-const DATA={"turnout": {"7": {"byunit": {"Engine 211": {"A": 60, "B": 57, "C": 88}, "Medic 211": {"A": 70, "B": 46, "C": 46}, "Engine 212": {"A": 46, "B": 86, "C": 122}, "Medic 212": {"A": 59, "B": 83, "C": 57}, "Engine 213": {"A": 61, "B": 73, "C": 82}, "Medic 213": {"A": 47, "B": 53, "C": 71}, "Engine 214": {"A": 67, "B": 79, "C": 0}}, "avg": 67, "p90": 105.0, "trimmed": 56, "pct80": 72, "under80": 173, "n": 241, "savg": {"A": 57, "B": 68, "C": 76}, "fastest": "A"}, "30": {"byunit": {"Engine 211": {"A": 62, "B": 66, "C": 65}, "Medic 211": {"A": 71, "B": 56, "C": 78}, "Engine 212": {"A": 71, "B": 82, "C": 82}, "Medic 212": {"A": 61, "B": 70, "C": 58}, "Engine 213": {"A": 76, "B": 73, "C": 67}, "Medic 213": {"A": 54, "B": 60, "C": 73}, "Engine 214": {"A": 95, "B": 78, "C": 100}}, "avg": 69, "p90": 113.0, "trimmed": 60, "pct80": 65, "under80": 669, "n": 1031, "savg": {"A": 66, "B": 69, "C": 72}, "fastest": "A"}, "ytd": {"byunit": {"Engine 211": {"A": 69, "B": 86, "C": 86}, "Medic 211": {"A": 60, "B": 72, "C": 82}, "Engine 212": {"A": 81, "B": 86, "C": 86}, "Medic 212": {"A": 72, "B": 75, "C": 72}, "Engine 213": {"A": 93, "B": 88, "C": 76}, "Medic 213": {"A": 71, "B": 74, "C": 69}, "Engine 214": {"A": 90, "B": 103, "C": 91}}, "avg": 78, "p90": 128.0, "trimmed": 66, "pct80": 55, "under80": 3457, "n": 6272, "savg": {"A": 75, "B": 80, "C": 79}, "fastest": "A"}}, "training": {"7": {"grid": {"211": {"A": 22.0, "B": 44.5, "C": 0.0}, "212": {"A": 42.0, "B": 29.0, "C": 40.0}, "213": {"A": 32.0, "B": 12.0, "C": 0.0}, "214": {"A": 16.0, "B": 55.0, "C": 6.0}}, "total": 298.5, "dropped": 15.0}, "30": {"grid": {"211": {"A": 224.0, "B": 357.4, "C": 92.1}, "212": {"A": 172.0, "B": 96.9, "C": 181.0}, "213": {"A": 155.0, "B": 132.1, "C": 68.6}, "214": {"A": 130.0, "B": 161.4, "C": 158.1}}, "total": 1928.8, "dropped": 78.0}, "ytd": {"grid": {"211": {"A": 1458.8, "B": 1503.1, "C": 2678.7}, "212": {"A": 1268.2, "B": 585.8, "C": 1210.8}, "213": {"A": 1016.7, "B": 507.6, "C": 1288.0}, "214": {"A": 630.5, "B": 582.8, "C": 666.5}}, "total": 13397.7, "dropped": 611.1}}, "meta": {"through": "2026-07-16", "ref_date": "2026-01-01", "ref_shift": "A", "ref_tourday": 1}};
+const DATA={"turnout": {"7": {"byunit": {"Engine 211": {"A": {"a": 60, "n": 4}, "B": {"a": 57, "n": 11}, "C": {"a": 88, "n": 6}}, "Medic 211": {"A": {"a": 70, "n": 8}, "B": {"a": 46, "n": 21}, "C": {"a": 46, "n": 13}}, "Engine 212": {"A": {"a": 46, "n": 16}, "B": {"a": 86, "n": 24}, "C": {"a": 122, "n": 13}}, "Medic 212": {"A": {"a": 59, "n": 20}, "B": {"a": 83, "n": 24}, "C": {"a": 57, "n": 11}}, "Engine 213": {"A": {"a": 61, "n": 8}, "B": {"a": 73, "n": 11}, "C": {"a": 82, "n": 9}}, "Medic 213": {"A": {"a": 47, "n": 6}, "B": {"a": 53, "n": 18}, "C": {"a": 71, "n": 14}}, "Engine 214": {"A": {"a": 67, "n": 1}, "B": {"a": 79, "n": 2}, "C": {"a": 0, "n": 1}}}, "avg": 67, "p90": 105.0, "trimmed": 56, "pct80": 72, "under80": 173, "n": 241, "avg_fire": 76, "n_fire": 106, "avg_medic": 60, "n_medic": 135, "savg": {"A": 57, "B": 68, "C": 76}, "fastest": "A", "trend": {"pts": [51, 85, 66, 56, 58, 82, 75], "delta": 12, "dir": "up", "first": "Jul 9", "last": "Jul 15"}}, "30": {"byunit": {"Engine 211": {"A": {"a": 62, "n": 29}, "B": {"a": 66, "n": 29}, "C": {"a": 65, "n": 41}}, "Medic 211": {"A": {"a": 71, "n": 48}, "B": {"a": 56, "n": 50}, "C": {"a": 78, "n": 61}}, "Engine 212": {"A": {"a": 71, "n": 62}, "B": {"a": 82, "n": 69}, "C": {"a": 82, "n": 70}}, "Medic 212": {"A": {"a": 61, "n": 80}, "B": {"a": 70, "n": 83}, "C": {"a": 58, "n": 78}}, "Engine 213": {"A": {"a": 76, "n": 47}, "B": {"a": 73, "n": 38}, "C": {"a": 67, "n": 42}}, "Medic 213": {"A": {"a": 54, "n": 55}, "B": {"a": 60, "n": 55}, "C": {"a": 73, "n": 61}}, "Engine 214": {"A": {"a": 95, "n": 10}, "B": {"a": 78, "n": 9}, "C": {"a": 100, "n": 14}}}, "avg": 69, "p90": 113.0, "trimmed": 60, "pct80": 65, "under80": 669, "n": 1031, "avg_fire": 75, "n_fire": 460, "avg_medic": 65, "n_medic": 571, "savg": {"A": 66, "B": 69, "C": 72}, "fastest": "A", "trend": {"pts": [66, 79, 65, 74, 68, 69, 64, 72], "delta": -2, "dir": "down", "first": "Jun 16", "last": "Jul 15"}}, "ytd": {"byunit": {"Engine 211": {"A": {"a": 69, "n": 171}, "B": {"a": 86, "n": 158}, "C": {"a": 86, "n": 172}}, "Medic 211": {"A": {"a": 60, "n": 322}, "B": {"a": 72, "n": 313}, "C": {"a": 82, "n": 315}}, "Engine 212": {"A": {"a": 81, "n": 452}, "B": {"a": 86, "n": 439}, "C": {"a": 86, "n": 417}}, "Medic 212": {"A": {"a": 72, "n": 480}, "B": {"a": 75, "n": 498}, "C": {"a": 72, "n": 470}}, "Engine 213": {"A": {"a": 93, "n": 271}, "B": {"a": 88, "n": 273}, "C": {"a": 76, "n": 255}}, "Medic 213": {"A": {"a": 71, "n": 345}, "B": {"a": 74, "n": 342}, "C": {"a": 69, "n": 324}}, "Engine 214": {"A": {"a": 90, "n": 97}, "B": {"a": 103, "n": 81}, "C": {"a": 91, "n": 77}}}, "avg": 78, "p90": 128.0, "trimmed": 66, "pct80": 55, "under80": 3457, "n": 6272, "avg_fire": 85, "n_fire": 2863, "avg_medic": 72, "n_medic": 3409, "savg": {"A": 75, "B": 80, "C": 79}, "fastest": "A", "trend": {"pts": [81, 85, 77, 77, 79, 78, 78, 69], "delta": -10, "dir": "down", "first": "Jan 1", "last": "Jul 16"}}}, "training": {"7": {"grid": {"211": {"A": 22.0, "B": 44.5, "C": 0.0}, "212": {"A": 42.0, "B": 29.0, "C": 40.0}, "213": {"A": 32.0, "B": 12.0, "C": 0.0}, "214": {"A": 16.0, "B": 55.0, "C": 6.0}}, "total": 298.5, "dropped": 15.0}, "30": {"grid": {"211": {"A": 224.0, "B": 357.4, "C": 92.1}, "212": {"A": 172.0, "B": 96.9, "C": 181.0}, "213": {"A": 155.0, "B": 132.1, "C": 68.6}, "214": {"A": 130.0, "B": 161.4, "C": 158.1}}, "total": 1928.8, "dropped": 78.0}, "ytd": {"grid": {"211": {"A": 1458.8, "B": 1503.1, "C": 2678.7}, "212": {"A": 1268.2, "B": 585.8, "C": 1210.8}, "213": {"A": 1016.7, "B": 507.6, "C": 1288.0}, "214": {"A": 630.5, "B": 582.8, "C": 666.5}}, "total": 13397.7, "dropped": 611.1}}, "meta": {"through": "2026-07-16", "ref_date": "2026-01-01", "ref_shift": "A", "ref_tourday": 1}};
+const BOARD_VERSION="Board v2.0";
+(function(){var m=DATA.meta||{};
+  var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONA=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(m.through){var p=m.through.split('-'),y=+p[0],mo=+p[1]-1,d=+p[2];
+    var a=document.getElementById('hThrough');if(a)a.textContent='through '+MON[mo]+' '+d+', '+y;
+    var b=document.getElementById('hVer');if(b)b.textContent=BOARD_VERSION+' · '+MONA[mo]+' '+d+', '+y;}
+})();
 const NS="http://www.w3.org/2000/svg";
+const _tip=document.getElementById('chartTip');
+function showTip(ev,label,shift,val,count,word){
+  _tip.innerHTML='<b>'+label+' · '+shift+' shift</b><span>'+count+' '+word+'</span><span class="mut">avg '+val+'</span>';
+  _tip.classList.add('on');moveTip(ev);}
+function moveTip(ev){var x=ev.clientX+14,y=ev.clientY+14;
+  if(x+230>window.innerWidth)x=ev.clientX-216;
+  _tip.style.left=x+'px';_tip.style.top=y+'px';}
+function hideTip(){_tip.classList.remove('on');}
 function el(t,a,x){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;}
 function mmss(s){s=Math.round(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function topR(x,y,w,h,r){r=Math.min(r,w/2,h);if(h<=0.5)return `M${x} ${y} h${w} Z`;return `M${x} ${y+r} a${r} ${r} 0 0 1 ${r} ${-r} h${w-2*r} a${r} ${r} 0 0 1 ${r} ${r} v${h-r} h${-w} Z`;}
@@ -343,12 +384,35 @@ function groupedBars(mountId, groups, opts){
     SH.forEach((s,si)=>{const v=grp.vals[s];const bx=gx+si*(bw+gap);
       svg.appendChild(el('text',{class:'shl','text-anchor':'middle',x:bx+bw/2,y:PB+13},s));
       if(!v)return;const y=yOf(v),h=PB-y;
-      svg.appendChild(el('path',{class:'bar '+s.toLowerCase(),d:topR(bx,y,bw,h,3)}));
+      const bar=el('path',{class:'bar '+s.toLowerCase(),d:topR(bx,y,bw,h,3)});
+      if(grp.counts){const cnt=grp.counts[s],lab=grp.label,shf=s,vv=opts.vfmt(v),wd=opts.countWord||'calls';
+        bar.style.cursor='pointer';
+        bar.addEventListener('mouseenter',ev=>showTip(ev,lab,shf,vv,cnt,wd));
+        bar.addEventListener('mousemove',moveTip);
+        bar.addEventListener('mouseleave',hideTip);
+        bar.addEventListener('click',ev=>showTip(ev,lab,shf,vv,cnt,wd));}
+      svg.appendChild(bar);
       svg.appendChild(el('text',{class:'val','text-anchor':'middle',x:bx+bw/2,y:y-5},opts.vfmt(v)));});
     svg.appendChild(el('text',{class:'ulab','text-anchor':'middle',x:gx+cl/2,y:PB+30},grp.label));});
   mount.appendChild(svg);
 }
 
+function drawTrend(mountId, tr){
+  const mount=document.getElementById(mountId); mount.innerHTML='';
+  const pts=(tr&&tr.pts)||[];
+  if(pts.length<2){mount.innerHTML='<div style="color:var(--meta);font-size:12px;text-align:center;padding:22px 0">Not enough data for a trend</div>';return;}
+  const W=360,H=104,L=8,R=10,T=12,Bm=10;const x0=L,x1=W-R,y0=T,y1=H-Bm;
+  const mn=Math.min.apply(null,pts),mx=Math.max.apply(null,pts),rng=(mx-mn)||1;
+  const X=i=>x0+(i/(pts.length-1))*(x1-x0);
+  const Y=v=>y1-((v-mn)/rng)*(y1-y0);
+  const col=tr.dir==='down'?'#0A5A41':(tr.dir==='up'?'#C0392B':'#8C8C8C');
+  const svg=el('svg',{class:'trend',viewBox:`0 0 ${W} ${H}`});
+  let dl='';pts.forEach((v,i)=>{dl+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)+' ';});
+  svg.appendChild(el('path',{d:dl+'L '+X(pts.length-1).toFixed(1)+' '+y1+' L '+X(0).toFixed(1)+' '+y1+' Z',fill:col,'fill-opacity':'0.10'}));
+  svg.appendChild(el('path',{d:dl.trim(),fill:'none',stroke:col,'stroke-width':'2.5','stroke-linejoin':'round','stroke-linecap':'round'}));
+  svg.appendChild(el('circle',{cx:X(pts.length-1).toFixed(1),cy:Y(pts[pts.length-1]).toFixed(1),r:'3.5',fill:col}));
+  mount.appendChild(svg);
+}
 function shiftBars(mountId, obj, fmt, lowerBetter){
   const mount=document.getElementById(mountId); mount.innerHTML='';
   let mx=0; SH.forEach(s=>{if(obj[s]>mx)mx=obj[s];}); if(!mx)mx=1;
@@ -369,29 +433,35 @@ function renderTurnout(w){
   // KPIs
   const kp=document.getElementById('turnKpis');
   kp.innerHTML=`
-    <div class="kpi"><div class="top"><span class="k">Average turnout</span>
+    <div class="kpi"><div class="top"><span class="k">Avg turnout &middot; Eng/Trk</span>
       <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 13V9M9 3h6"/></svg></span></div>
-      <div class="v">${d.avg}<small> sec</small></div><div class="d">department, all units &middot; <b>${d.n}</b> calls</div></div>
-    <div class="kpi"><div class="top"><span class="k">Avg turnout &middot; 90th pct</span>
+      <div class="v">${d.avg_fire}<small> sec</small></div><div class="d">engines &amp; trucks &middot; <b>${d.n_fire}</b> calls</div></div>
+    <div class="kpi"><div class="top"><span class="k">Avg turnout &middot; Medic</span>
+      <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg></span></div>
+      <div class="v">${d.avg_medic}<small> sec</small></div><div class="d">medic units &middot; <b>${d.n_medic}</b> calls</div></div>
+    <div class="kpi"><div class="top"><span class="k">Turnout 90th Percentile</span>
       <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-6M22 20H2"/></svg></span></div>
       <div class="v">${d.p90}<small> sec</small></div><div class="d">Goal = <b>80 sec</b></div></div>
     <div class="kpi"><div class="top"><span class="k">Under 80 sec &middot; NFPA 1710</span>
       <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span></div>
-      <div class="v">${d.pct80}<small>%</small></div><div class="d"><b>${d.under80}</b> of ${d.n} fire responses within target</div></div>
-    <div class="kpi"><div class="top"><span class="k">Fastest shift</span>
-      <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></span></div>
-      <div class="v">${d.fastest} <small>&middot; ${mmss(d.savg[d.fastest])}</small></div><div class="d">${SH.filter(s=>s!==d.fastest).map(s=>s+' '+mmss(d.savg[s])).join(' &middot; ')}</div></div>`;
+      <div class="v">${d.pct80}<small>%</small></div><div class="d"><b>${d.under80}</b> of ${d.n} responses within target</div></div>`;
   const label={'7':'last 7 days','30':'last 30 days','ytd':'year to date'}[w];
   document.getElementById('turnSub').textContent='Average dispatch-to-enroute, '+label;
-  const groups=UNITS.map(u=>({label:shortUnit(u),vals:DATA.turnout[w].byunit[u]}));
-  groupedBars('turnChart',groups,{unit:'time',fmt:mmss,vfmt:mmss,
+  const bu=DATA.turnout[w].byunit;
+  const groups=UNITS.map(u=>({label:shortUnit(u),
+    vals:{A:bu[u].A.a,B:bu[u].B.a,C:bu[u].C.a},
+    counts:{A:bu[u].A.n,B:bu[u].B.n,C:bu[u].C.n}}));
+  groupedBars('turnChart',groups,{unit:'time',fmt:mmss,vfmt:mmss,countWord:'calls',
     targets:[{v:80,label:'80s Fire',cls:'ln80'},{v:60,label:'60s EMS',cls:'ln60'}]});
   applyLineToggle();
   shiftBars('turnShiftRow',d.savg,mmss,true);
-  const others=SH.filter(s=>s!==d.fastest);
-  const gap=d.savg[others[0]]&&d.savg[d.fastest]?Math.abs(d.savg[others.map(s=>d.savg[s]).indexOf(Math.max(...others.map(s=>d.savg[s])))===0?others[0]:others[1]]-d.savg[d.fastest]):0;
-  const slowest=others.reduce((a,b)=>d.savg[a]>d.savg[b]?a:b);
-  document.getElementById('turnCallout').innerHTML=`<b>${d.fastest} shift</b> is fastest this window at ${mmss(d.savg[d.fastest])} &mdash; ${Math.abs(d.savg[slowest]-d.savg[d.fastest])} seconds ahead of ${slowest} shift. NFPA 1710 target for fire turnout is 80 seconds at the 90th percentile.`;
+  const tr=d.trend||{pts:[],dir:'flat',delta:0,first:'',last:''};
+  drawTrend('trendChart',tr);
+  const badge=document.getElementById('trendBadge');
+  if(tr.dir==='down'){badge.className='trend-badge good';badge.innerHTML='▼ '+Math.abs(tr.delta)+' sec faster';}
+  else if(tr.dir==='up'){badge.className='trend-badge bad';badge.innerHTML='▲ '+tr.delta+' sec slower';}
+  else{badge.className='trend-badge flat';badge.innerHTML='&rarr; holding steady';}
+  document.getElementById('trendSub').textContent=(tr.first&&tr.last)?tr.first+' → '+tr.last:'over the period';
 }
 
 const STN=['211','212','213','214'];
